@@ -22,3 +22,5 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px}
 .pill{font-size:12px;border-radius:99px;padding:2px 10px;background:var(--muted-bg);text-transform:capitalize}.pill.approved{background:#e3f1ea;color:var(--success)}.pill.rejected{background:#f6e6df;color:var(--bad)}
 footer{text-align:center;color:var(--text-2);font-size:12px;padding:16px}
 @media(max-width:480px){.two{grid-template-columns:1fr}}
+.tabs{display:flex;gap:8px;margin:12px 0 16px}.tabs button{padding:6px 14px;border-radius:99px;border:1px solid var(--border);background:var(--surface);font-size:13px;color:var(--text-2)}.tabs .on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.danger{background:var(--surface);color:var(--bad);border:1px solid var(--bad)}

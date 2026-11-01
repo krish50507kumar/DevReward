@@ -104,20 +104,41 @@ function Mine({ session }) {
 }
 
 function Admin({ profile }) {
-  const [rows, setRows] = useState(null);
-  const load = () => supabase.from('listings').select('*, profiles(display_name)').eq('status', 'pending').order('created_at').then(({ data }) => setRows(data || []));
-  useEffect(() => { if (profile?.is_admin) load(); }, [profile]);
+  const [rows, setRows] = useState(null), [tab, setTab] = useState('pending');
+  useEffect(() => {
+    if (!profile?.is_admin) return;
+    setRows(null);
+    let q = supabase.from('listings').select('*, profiles(display_name)').order('created_at', { ascending: false });
+    if (tab === 'pending') q = q.eq('status', 'pending');
+    q.then(({ data }) => setRows(data || []));
+  }, [profile, tab]);
   if (!profile?.is_admin) return <section className="panel"><p>Admins only.</p></section>;
-  const decide = async (id, status) => { const { error } = await supabase.from('listings').update({ status }).eq('id', id); if (!error) setRows((r) => r.filter((x) => x.id !== id)); else alert(error.message); };
+  const decide = async (id, status) => {
+    const { data, error } = await supabase.from('listings').update({ status }).eq('id', id).select();
+    if (error || !data?.length) return alert(error?.message || 'Update was not allowed.');
+    setRows((r) => (tab === 'pending' ? r.filter((x) => x.id !== id) : r.map((x) => (x.id === id ? { ...x, status } : x))));
+  };
+  const remove = async (r) => {
+    if (!confirm(`Delete "${r.title}" permanently?`)) return;
+    const { data, error } = await supabase.from('listings').delete().eq('id', r.id).select();
+    if (error || !data?.length) return alert(error?.message || 'Delete was not allowed.');
+    setRows((x) => x.filter((y) => y.id !== r.id));
+  };
   return (
-    <section className="panel wide"><h1>Review queue</h1>
-      {rows === null ? <p className="sub">Loading…</p> : !rows.length ? <p className="sub">No pending submissions.</p> :
+    <section className="panel wide"><h1>Review</h1>
+      <div className="tabs">{[['pending', 'Pending'], ['all', 'All listings']].map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
+      {rows === null ? <p className="sub">Loading…</p> : !rows.length ? <p className="sub">{tab === 'pending' ? 'No pending submissions.' : 'No listings yet.'}</p> :
         rows.map((r) => (
           <div className="item col" key={r.id}>
-            <div><b>{r.title}</b> <small>{r.type} · by {r.profiles?.display_name || 'unknown'}</small></div>
-            <small>Deadline {fmt(r.deadline)} · {r.who || 'no eligibility given'} · {r.perk}</small>
+            <div><b>{r.title}</b> <Pill s={r.status} /></div>
+            <small>{r.type} · by {r.profiles?.display_name || 'admin / unknown'} · Deadline {fmt(r.deadline)}</small>
+            <small>{r.who || 'no eligibility given'} · {r.perk}</small>
             <a href={r.url} target="_blank" rel="noopener noreferrer">{r.url}</a>
-            <div className="acts"><button className="btn sm" onClick={() => decide(r.id, 'approved')}>Approve</button><button className="btn sm ghost" onClick={() => decide(r.id, 'rejected')}>Reject</button></div>
+            <div className="acts">
+              {r.status !== 'approved' && <button className="btn sm" onClick={() => decide(r.id, 'approved')}>Approve</button>}
+              {r.status !== 'rejected' && <button className="btn sm ghost" onClick={() => decide(r.id, 'rejected')}>Reject</button>}
+              <button className="btn sm danger" onClick={() => remove(r)}>Delete</button>
+            </div>
           </div>))}
     </section>
   );
@@ -142,7 +163,7 @@ export default function App() {
         {route === 'mine' && <Mine session={session} />}
         {route === 'admin' && <Admin profile={profile} />}
       </main>
-      <footer>Always check the official page before applying.</footer>
+      <footer>Always check the official page before applying. · <a href="/privacy.html">Privacy</a></footer>
     </>
   );
 }
